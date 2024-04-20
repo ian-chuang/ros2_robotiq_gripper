@@ -40,6 +40,8 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+#include <serial/serial.h>
+
 const auto kLogger = rclcpp::get_logger("RobotiqGripperHardwareInterface");
 
 constexpr uint8_t kGripperMinPos = 3;
@@ -146,24 +148,46 @@ RobotiqGripperHardwareInterface::on_configure(const rclcpp_lifecycle::State& pre
   RCLCPP_DEBUG(kLogger, "on_configure");
   try
   {
-    if (hardware_interface::SystemInterface::on_configure(previous_state) != CallbackReturn::SUCCESS)
+    if (hardware_interface::SystemInterface::on_configure(previous_state)!= CallbackReturn::SUCCESS)
     {
       return CallbackReturn::ERROR;
     }
 
     // Open the serial port and handshake.
-    bool connected = driver_->connect();
+    bool connected = false;
+    int retries = 0;
+    const int max_retries = 10; // 10 retries with 1 second sleep in between
+    while (!connected && retries < max_retries)
+    {
+      try
+      {
+        connected = driver_->connect();
+        if (!connected)
+        {
+          RCLCPP_WARN(kLogger, "Cannot connect to the Robotiq gripper, retrying...");
+          std::this_thread::sleep_for(std::chrono::seconds(1));
+        }
+      }
+      catch (const serial::IOException& e)
+      {
+        RCLCPP_WARN(kLogger, "IOException while connecting to the Robotiq gripper: %s, retrying...", e.what());
+        std::this_thread::sleep_for(std::chrono::seconds(1));
+      }
+      retries++;
+    }
+
     if (!connected)
     {
-      RCLCPP_ERROR(kLogger, "Cannot connect to the Robotiq gripper");
+      RCLCPP_ERROR(kLogger, "Cannot connect to the Robotiq gripper after %d retries", max_retries);
       return CallbackReturn::ERROR;
     }
   }
   catch (const std::exception& e)
   {
-    RCLCPP_ERROR(kLogger, "Cannot configure the Robotiq gripper: %s", e.what());
+    RCLCPP_ERROR(kLogger, "General exception while configuring the Robotiq gripper: %s", e.what());
     return CallbackReturn::ERROR;
   }
+
   return CallbackReturn::SUCCESS;
 }
 

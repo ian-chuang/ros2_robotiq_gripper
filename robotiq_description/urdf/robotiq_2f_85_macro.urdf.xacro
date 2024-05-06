@@ -5,6 +5,7 @@
         prefix
         parent
         *origin
+        grasp_link_offset:=0.15
         sim_ignition:=false
         sim_isaac:=false
         isaac_joint_commands:=/isaac_joint_commands
@@ -292,6 +293,14 @@
             <axis xyz="0 -1 0" />
             <origin xyz="-0.00563134 0.0 0.04718515" rpy="0 0 0" />
             <mimic joint="${prefix}robotiq_85_left_knuckle_joint" />
+        </joint>
+
+
+        <link name="${prefix}grasp_link" />
+        <joint name="${prefix}grasp_joint" type="fixed">
+            <parent link="${prefix}robotiq_85_base_link" />
+            <child link="${prefix}grasp_link" />
+            <origin xyz="0.0 0.0 ${grasp_link_offset}" rpy="0 0 0" />
         </joint>
     </xacro:macro>
 </robot>
